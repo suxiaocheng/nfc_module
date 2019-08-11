@@ -1,0 +1,21 @@
+#ignore object file
+nfc_module
+
+#ignore output file
+*.o
+*.d
+*.yuv
+
+#ignore ctags file
+cscope.*
+tags
+
+#ignore backup file
+*.bak
+*~
+*.tmp
+
+#ignore swap file
+*.swp
+
+
