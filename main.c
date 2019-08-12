@@ -19,10 +19,13 @@ int main(int argc, char *argv[])
 	unsigned char TagType[2];
 	unsigned char SelectedSnr[4]; 
 
+	DEBUG("program start\n");
 	ret = setup_spi(1000);
 	if (ret < 0) {
 		ERR("setup spi fail\n");
 		exit(0);
+	} else {
+		DEBUG("Setup spi pass\n");
 	}
 
 	InitializeSystem();
@@ -60,10 +63,9 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-		}	
+		}
+		sleep(1);
 	}
-
-
 
 	exit_spi();
 	return 0;

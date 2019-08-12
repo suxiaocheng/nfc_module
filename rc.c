@@ -8,6 +8,20 @@
 #define SPI_MODE		3
 #define SPI_MODULE_RESET	6
 
+
+#define SPI_CE0 		10
+#define SPI_MISO 		13
+#define SPI_MOSI 		12
+#define SPI_SCK 		14
+#define NSS_L			digitalWrite(SPI_CE0, FALSE)
+#define NSS_H			digitalWrite(SPI_CE0, TRUE)
+#define MOSI_L			digitalWrite(SPI_MOSI, FALSE)
+#define MOSI_H			digitalWrite(SPI_MOSI, TRUE)
+#define SCK_L			digitalWrite(SPI_SCK, FALSE)
+#define SCK_H			digitalWrite(SPI_SCK, TRUE)
+
+#define READ_MISO		(digitalRead(SPI_MISO)?1:0)
+
 static int myFd;
 
 void setResetPin(int val)
@@ -29,19 +43,37 @@ int setup_spi(int speed)
 {
 	/* Init the spi interface */
 	wiringPiSetup();
+#ifdef __SPI__
 	if (myFd > 0) {
 		ERR("%s, myFd(%d) is not zero\n", __func__, myFd);
 		close(myFd);
 	}
+	DEBUG("Setup spi mode & speed\n");
 	myFd = wiringPiSPISetupMode(SPI_CHAN, speed, SPI_MODE);
 	if (myFd < 0) {
 		ERR("wiringPiSPISetup error: %d\n", myFd);
+	} else {
+		DEBUG("wirtingPiSPISetup pass\n");
 	}
 
 	/* init the reset pin */
 	pinMode(SPI_MODULE_RESET, OUTPUT);
         digitalWrite(SPI_MODULE_RESET, FALSE);
 	return myFd;
+#else
+	/* int the spi gpio */
+	pinMode(SPI_CE0, OUTPUT);
+	digitalWrite(SPI_CE0, FALSE);
+	pinMode(SPI_SCK, OUTPUT);
+	pinMode(SPI_MOSI, OUTPUT);
+	pinMode(SPI_MISO, INPUT);
+	
+	/* init the reset pin */
+	pinMode(SPI_MODULE_RESET, OUTPUT);
+        digitalWrite(SPI_MODULE_RESET, FALSE);
+
+	return 0;
+#endif
 }
 
 int exit_spi(void)
@@ -52,13 +84,32 @@ int exit_spi(void)
 	}
 }
 
+unsigned char revert_byte(unsigned char val)
+{
+	unsigned char i = 0;
+	unsigned char temp = 0;
+	
+	for (i = 0; i < 8; i ++) {
+		temp = temp << 1;
+		temp |= (val >> i) & 0x01;
+	}
+	
+	return temp;
+}
+
 unsigned char ReadRawRC(unsigned char addr)
 {
+#ifdef __SPI__
 	unsigned char val = 0;
 	unsigned char buf[2];
+	unsigned char tmp;
 	int ret;
 
-	buf[0] = addr;
+	tmp = ((addr<<1)&0x7E)|0x80;
+
+	tmp = revert_byte(tmp);
+
+	buf[0] = tmp;
 	buf[1] = (unsigned char)0xff;
 	ret = wiringPiSPIDataRW (SPI_CHAN, buf, 2);
 	if (ret == -1) {
@@ -67,16 +118,52 @@ unsigned char ReadRawRC(unsigned char addr)
 		DEBUG("Read addr: %d, val: %d\n", addr, buf[1]);
 	}
 
-	return buf[1];
+	return revert_byte(buf[1]);
+#else
+	unsigned char i, ucAddr;
+	unsigned char ucResult=0;
+
+	NSS_L;
+	ucAddr = ((addr<<1)&0x7E)|0x80;
+
+	for(i=8;i>0;i--)
+	{
+		SCK_L;
+		if(ucAddr&0x80)
+			MOSI_H;
+		else
+			MOSI_L;
+		SCK_H;
+		ucAddr <<= 1;
+	}
+
+	for(i=8;i>0;i--)
+	{
+		SCK_L;
+		ucResult <<= 1;
+		SCK_H;
+		if(READ_MISO == 1)
+			ucResult |= 1;
+	}
+
+	NSS_H;
+	SCK_H;
+	return ucResult;
+#endif
 }
 
 int WriteRawRC(unsigned char addr, unsigned char val)
 {
+#ifdef __SPI__
 	unsigned char buf[2];
+	unsigned char tmp;
 	int ret;
 
-	buf[0] = addr;
-	buf[1] = val;
+	tmp = ((addr<<1)&0x7E)|0x80;
+	tmp = revert_byte(tmp);
+
+	buf[0] = tmp;
+	buf[1] = revert_byte(val);
 	ret = wiringPiSPIDataRW (SPI_CHAN, buf, 2);
 	if (ret == -1) {
 		ERR("Write addr: %d fail\n", addr);	
@@ -85,6 +172,37 @@ int WriteRawRC(unsigned char addr, unsigned char val)
 	}
 
 	return ret;
+#else
+	unsigned char i, ucAddr;
+
+	SCK_L;
+	NSS_L;
+	ucAddr = ((addr<<1)&0x7E);
+
+	for(i=8;i>0;i--)
+	{
+		if(ucAddr&0x80)
+			MOSI_H;
+		else
+			MOSI_L;
+		SCK_H;
+		ucAddr <<= 1;
+		SCK_L;
+	}
+
+	for(i=8;i>0;i--)
+	{
+		if(val&0x80)
+			MOSI_H;
+		else
+			MOSI_L;
+		SCK_H;
+		val <<= 1;
+		SCK_L;
+	}
+	NSS_H;
+	SCK_H;
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////
