@@ -5,6 +5,7 @@
 #define FALSE   (!TRUE)
 
 #define SPI_CHAN 		0
+#define SPI_MODE		3
 #define SPI_MODULE_RESET	6
 
 static int myFd;
@@ -32,7 +33,7 @@ int setup_spi(int speed)
 		ERR("%s, myFd(%d) is not zero\n", __func__, myFd);
 		close(myFd);
 	}
-	myFd = wiringPiSPISetup (SPI_CHAN, speed);
+	myFd = wiringPiSPISetupMode(SPI_CHAN, speed, SPI_MODE);
 	if (myFd < 0) {
 		ERR("wiringPiSPISetup error: %d\n", myFd);
 	}
