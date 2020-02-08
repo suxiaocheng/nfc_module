@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 		status= PcdRequest(REQ_ALL,TagType);
 		if(!status)
 		{
-			DEBUG("Step2: TagType: 0x%x%x", TagType[1], TagType[0]);
+			DEBUG("Step2: TagType: 0x%x-%x\n", TagType[1], TagType[0]);
 			status = PcdAnticoll(SelectedSnr);
 			if(!status)
 			{
