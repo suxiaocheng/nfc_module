@@ -3,11 +3,17 @@
 #include "debug.h"
 #include "rc.h"
 
-void InitializeSystem()
+char InitializeSystem()
 {
-	PcdReset();
+	char ret = MI_OK;
+	ret = PcdReset();
+	if (ret == MI_ERR) {
+		return ret;
+	}
 	PcdAntennaOff(); 
-	PcdAntennaOn();  
+	PcdAntennaOn();
+
+	return ret;
 }
 
 int main(int argc, char *argv[])
@@ -28,7 +34,10 @@ int main(int argc, char *argv[])
 		DEBUG("Setup spi pass\n");
 	}
 
-	InitializeSystem();
+	if (InitializeSystem() != MI_OK) {
+		ERR("Init system fail\n");
+		return -1;
+	}
 
 	while (1)
 	{

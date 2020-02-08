@@ -493,6 +493,9 @@ void CalulateCRC(unsigned char *pIndata,unsigned char len,unsigned char *pOutDat
 /////////////////////////////////////////////////////////////////////
 char PcdReset(void)
 {
+    char val;
+    int i;
+
     //MF522_RST=1;
     setResetPin(TRUE);
     _nop_();
@@ -504,7 +507,20 @@ char PcdReset(void)
      _nop_();
 
     WriteRawRC(CommandReg,PCD_RESETPHASE);
-    _nop_();
+
+    // wait device exit soft power down mode
+    for (i=0; i<100; i++) {
+        val = ReadRawRC(CommandReg);
+	if ((val & (0x1<<4)) == 0) {
+	    break;
+	}
+        _nop_();
+    }
+
+    DEBUG("reset sucessfully at %d cycle\n", i);
+    if (i == 100) {
+        return MI_ERR;
+    }
     
     WriteRawRC(ModeReg,0x3D);            //和Mifare卡通讯，CRC初始值0x6363
     WriteRawRC(TReloadRegL,30);           
